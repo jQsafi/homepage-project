@@ -24,24 +24,9 @@ const detectShortcutType = (input) => {
   return 'note';
 };
 
-function ShortcutForm({ onAddShortcut, editingShortcut, onUpdateShortcut, onCancelEdit }) {
+function ShortcutForm({ onAddShortcut, placeholderIndex }) {
   const [name, setName] = useState('');
   const [mainInput, setMainInput] = useState(''); // Single input for value/content
-
-  useEffect(() => {
-    if (editingShortcut) {
-      setName(editingShortcut.name);
-      // Set mainInput based on type
-      if (editingShortcut.type === 'note') {
-        setMainInput(editingShortcut.content || '');
-      } else {
-        setMainInput(editingShortcut.value || '');
-      }
-    } else {
-      setName('');
-      setMainInput('');
-    }
-  }, [editingShortcut]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -60,11 +45,7 @@ function ShortcutForm({ onAddShortcut, editingShortcut, onUpdateShortcut, onCanc
     const finalName = name.trim() === '' ? mainInput : name; // Use mainInput as name if name is empty
     newShortcut.name = finalName;
 
-    if (editingShortcut) {
-      onUpdateShortcut({ ...editingShortcut, ...newShortcut });
-    } else {
-      onAddShortcut({ id: Date.now(), ...newShortcut }); // Add id here for new shortcuts
-    }
+    onAddShortcut(newShortcut, placeholderIndex); // Pass placeholderIndex
     setName('');
     setMainInput('');
   };
@@ -93,13 +74,8 @@ function ShortcutForm({ onAddShortcut, editingShortcut, onUpdateShortcut, onCanc
       />
 
       <Button type="submit" variant="contained" color="success" sx={{ mr: 1 }}>
-        {editingShortcut ? 'Update Shortcut' : 'Add Shortcut'}
+        Add Shortcut
       </Button>
-      {editingShortcut && (
-        <Button type="button" variant="outlined" onClick={onCancelEdit}>
-          Cancel
-        </Button>
-      )}
     </Box>
   );
 }

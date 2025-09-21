@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { FaLink, FaEdit, FaTrashAlt, FaPhone, FaEnvelope, FaStickyNote } from 'react-icons/fa';
-import { ListItem, ListItemIcon, ListItemText, IconButton, Box, Typography } from '@mui/material';
+import { FaLink, FaPhone, FaEnvelope, FaStickyNote } from 'react-icons/fa';
+import { ListItem, ListItemIcon, ListItemText, Box, Typography } from '@mui/material';
 
-function ShortcutItem({ shortcut, onEdit, onDelete }) {
+function ShortcutItem({ shortcut, setNodeRef, style, attributes, listeners, isDragging }) {
   const [faviconError, setFaviconError] = useState(false);
 
   const getIcon = () => {
@@ -21,7 +21,7 @@ function ShortcutItem({ shortcut, onEdit, onDelete }) {
           <img
             src={`https://www.google.com/s2/favicons?domain=${shortcut.value}`}
             alt="Favicon"
-            style={{ width: '24px', height: '24px' }}
+            style={{ width: '24px', height: '24px', borderRadius: '50%', border: '1px solid #e0e0e0' }}
             onError={() => setFaviconError(true)}
           />
         );
@@ -42,16 +42,6 @@ function ShortcutItem({ shortcut, onEdit, onDelete }) {
     }
   };
 
-  const handleEditClick = (e) => {
-    e.stopPropagation(); // Stop event propagation
-    onEdit(shortcut);
-  };
-
-  const handleDeleteClick = (e) => {
-    e.stopPropagation(); // Stop event propagation
-    onDelete(shortcut.id);
-  };
-
   return (
     <ListItem
       button
@@ -65,28 +55,25 @@ function ShortcutItem({ shortcut, onEdit, onDelete }) {
         borderRadius: '4px',
         '&:hover': { backgroundColor: '#f5f5f5' },
         position: 'relative',
-        pr: '90px', // Space for buttons
+        maxHeight: 100, // Max height for the tile
+        p: 1, // Add internal padding
+        transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+        '&:hover': { transform: 'scale(1.05)', boxShadow: '0 4px 8px rgba(0,0,0,0.2)' },
       }}
-      onClick={(e) => { if (shortcut.type === 'note') { e.preventDefault(); /* Handle note click */ } }}
+      onClick={(e) => { if (isDragging) { e.preventDefault(); e.stopPropagation(); return; } if (shortcut.type === 'note') { e.preventDefault(); /* Handle note click */ } }}
     >
-      <ListItemIcon>
+      <Box ref={setNodeRef} style={style} {...attributes} {...listeners} sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, cursor: 'grab' }}>
+        <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
         {getIcon()}
       </ListItemIcon>
       <ListItemText
-        primary={<Typography variant="h6">{shortcut.name}</Typography>}
+        primary={<Typography variant="h6" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{shortcut.name}</Typography>}
         secondary={shortcut.type === 'note' ? (
           <Typography variant="body2" color="text.secondary">
             {shortcut.content}
           </Typography>
         ) : null}
       />
-      <Box sx={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}>
-        <IconButton size="small" onClick={handleEditClick} sx={{ mr: 0.5 }}>
-          <FaEdit fontSize="small" />
-        </IconButton>
-        <IconButton size="small" onClick={handleDeleteClick} color="error">
-          <FaTrashAlt fontSize="small" />
-        </IconButton>
       </Box>
     </ListItem>
   );

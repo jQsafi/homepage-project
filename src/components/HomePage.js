@@ -3,31 +3,56 @@ import { saveToLocalStorage, loadFromLocalStorage } from '../utils/localStorage'
 import ShortcutList from './ShortcutList';
 import ShortcutForm from './ShortcutForm';
 import NotePanel from './NotePanel'; // Import NotePanel
-import { Container, Box, Typography, Card, CardContent, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert, Grid } from '@mui/material';
+import { Container, Box, Typography, Card, CardContent, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert, Grid, Fab } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 
 function HomePage() {
   const [shortcuts, setShortcuts] = useState([]);
-  const [editingShortcut, setEditingShortcut] = useState(null);
-  const [defaultPage, setDefaultPage] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [shortcutToDelete, setShortcutToDelete] = useState(null);
+  const [addingToPlaceholderIndex, setAddingToPlaceholderIndex] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleGoogleSearch = () => {
+    if (searchQuery.trim()) {
+      window.open(`https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`, '_blank');
+      setSearchQuery(''); // Clear search query after search
+    }
+  };
 
   useEffect(() => {
-    setShortcuts(loadFromLocalStorage('shortcuts', []));
-    setDefaultPage(loadFromLocalStorage('defaultPage', 'https://www.google.com'));
+    const storedShortcuts = loadFromLocalStorage('shortcuts', []);
+    if (storedShortcuts.length === 0) {
+      const defaultShortcuts = [
+        { id: 1, name: 'Google', value: 'https://www.google.com', type: 'url' },
+        { id: 2, name: 'YouTube', value: 'https://www.youtube.com', type: 'url' },
+        { id: 3, name: 'Facebook', value: 'https://www.facebook.com', type: 'url' },
+        { id: 4, name: 'Wikipedia', value: 'https://www.wikipedia.org', type: 'url' },
+        { id: 5, name: 'Amazon', value: 'https://www.amazon.com', type: 'url' },
+        { id: 6, name: 'X (Twitter)', value: 'https://twitter.com', type: 'url' },
+        { id: 7, name: 'Instagram', value: 'https://www.instagram.com', type: 'url' },
+        { id: 8, name: 'LinkedIn', value: 'https://www.linkedin.com', type: 'url' },
+        { id: 9, name: 'Reddit', value: 'https://www.reddit.com', type: 'url' },
+        { id: 10, name: 'Netflix', value: 'https://www.netflix.com', type: 'url' },
+        { id: 11, name: 'Microsoft', value: 'https://www.microsoft.com', type: 'url' },
+        { id: 12, name: 'Apple', value: 'https://www.apple.com', type: 'url' },
+        { id: 13, name: 'Eisenhower Matrix', content: 'Prioritize tasks by urgency and importance.', type: 'note' },
+        { id: 14, name: 'Pomodoro Technique', content: 'Work in focused 25-minute intervals with short breaks.', type: 'note' },
+        { id: 15, name: 'Minimize Distractions', content: 'Turn off notifications on phone and computer.', type: 'note' },
+        { id: 16, name: 'Single-tasking', content: 'Focus on one task at a time instead of multitasking.', type: 'note' },
+        { id: 17, name: 'Plan Day in Advance', content: 'Create a to-do list for the next day.', type: 'note' },
+      ];
+      setShortcuts(defaultShortcuts);
+    } else {
+      setShortcuts(storedShortcuts);
+    }
   }, []);
 
   useEffect(() => {
     saveToLocalStorage('shortcuts', shortcuts);
   }, [shortcuts]);
-
-  useEffect(() => {
-    saveToLocalStorage('defaultPage', defaultPage);
-  }, [defaultPage]);
 
   const showSnackbar = (message, severity) => {
     setSnackbarMessage(message);
@@ -42,59 +67,40 @@ function HomePage() {
     setSnackbarOpen(false);
   };
 
-  const handleAddShortcut = (newShortcut) => {
-    setShortcuts([...shortcuts, { id: Date.now(), ...newShortcut }]);
+  const handleAddShortcut = (newShortcut, index = null) => {
+    setShortcuts(prevShortcuts => {
+      const shortcutWithId = { id: Date.now(), ...newShortcut };
+      if (index !== null && index >= 0 && index <= prevShortcuts.length) {
+        const newShortcuts = [...prevShortcuts];
+        newShortcuts.splice(index, 0, shortcutWithId);
+        return newShortcuts;
+      } else {
+        return [...prevShortcuts, shortcutWithId];
+      }
+    });
     setShowAddModal(false);
+    setAddingToPlaceholderIndex(null);
     showSnackbar('Shortcut added successfully!', 'success');
   };
 
-  const handleUpdateShortcut = (updatedShortcut) => {
-    setShortcuts(shortcuts.map(s => (s.id === updatedShortcut.id ? updatedShortcut : s)));
-    setEditingShortcut(null);
-    setShowAddModal(false);
-    showSnackbar('Shortcut updated successfully!', 'success');
+  const handleShortcutsReorder = (reorderedShortcuts, type) => {
+    setShortcuts(prevShortcuts => {
+      // Filter out the old shortcuts of this type
+      const otherShortcuts = prevShortcuts.filter(s => s.type !== type);
+      // Combine with the newly reordered shortcuts of this type
+      const newShortcuts = [...otherShortcuts, ...reorderedShortcuts];
+      return newShortcuts;
+    });
   };
 
-  const handleDeleteShortcut = (id) => {
-    setShortcutToDelete(id);
-    setShowConfirmModal(true);
-  };
-
-  const confirmDeleteShortcut = () => {
-    setShortcuts(shortcuts.filter(s => s.id !== shortcutToDelete));
-    setShowConfirmModal(false);
-    setShortcutToDelete(null);
-    showSnackbar('Shortcut deleted successfully!', 'success');
-  };
-
-  const cancelDeleteShortcut = () => {
-    setShowConfirmModal(false);
-    setShortcutToDelete(null);
-  };
-
-  const handleEditShortcut = (shortcut) => {
-    setEditingShortcut(shortcut);
+  const handleShowAddModal = (index = null) => {
     setShowAddModal(true);
+    setAddingToPlaceholderIndex(index);
   };
-
-  const handleCancelEdit = () => {
-    setEditingShortcut(null);
-    setShowAddModal(false);
-  };
-
-  const handleShowAddModal = () => setShowAddModal(true);
   const handleCloseAddModal = () => {
     setShowAddModal(false);
-    setEditingShortcut(null);
+    setAddingToPlaceholderIndex(null);
   };
-
-  const handleGoToDefault = useCallback(() => {
-    if (defaultPage) {
-      window.open(defaultPage, '_self');
-    } else {
-      showSnackbar('Please set a default page URL first.', 'warning');
-    }
-  }, [defaultPage]);
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -104,10 +110,6 @@ function HomePage() {
           case 'a':
             event.preventDefault();
             handleShowAddModal();
-            break;
-          case 'd':
-            event.preventDefault();
-            handleGoToDefault();
             break;
           case '1':
           case '2':
@@ -137,7 +139,7 @@ function HomePage() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [shortcuts, handleGoToDefault, handleShowAddModal]);
+  }, [shortcuts, handleShowAddModal]);
 
   const urlShortcuts = shortcuts.filter(s => s.type === 'url');
   const callShortcuts = shortcuts.filter(s => s.type === 'call');
@@ -145,101 +147,87 @@ function HomePage() {
   const noteShortcuts = shortcuts.filter(s => s.type === 'note');
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 5 }}>
+    <Container maxWidth="lg" sx={{ mt: 5, p: 2, position: 'relative' }}>
       <Typography variant="h3" component="h1" align="center" gutterBottom>
         Your Personalized Homepage
       </Typography>
 
-      <Card sx={{ mb: 4 }}>
-        <CardContent>
-          <Typography variant="h5" component="h2" gutterBottom>
-            Default Page
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
-            <TextField
-              fullWidth
-              label="Set your default page URL"
-              variant="outlined"
-              value={defaultPage}
-              onChange={(e) => setDefaultPage(e.target.value)}
-              sx={{ flexGrow: 1 }}
-            />
-            <Button variant="contained" onClick={handleGoToDefault}>
-              Go to Default
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
+      <Box sx={{ mb: 4, display: 'flex', alignItems: 'center' }}>
+        <TextField
+          fullWidth
+          label="Search Google..."
+          variant="outlined"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter') {
+              handleGoogleSearch();
+            }
+          }}
+        />
+      </Box>
 
-      {/* Add Shortcut Button */}
-      <Card sx={{ mb: 4 }}>
-        <CardContent>
-          <Typography variant="h5" component="h2" gutterBottom>
-            Add New Shortcut
-          </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-            <Button variant="contained" onClick={handleShowAddModal} sx={{ p: 3, fontSize: '1.2rem' }}>
-              Add New Shortcut
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
+      
 
       {urlShortcuts.length > 0 && (
-        <Card sx={{ mb: 4 }}>
+        <Card sx={{ mb: 4, boxShadow: 3 }}>
           <CardContent>
             <Typography variant="h5" component="h2" gutterBottom>
               URLs
             </Typography>
             <ShortcutList
               shortcuts={urlShortcuts}
-              onEdit={handleEditShortcut}
-              onDelete={handleDeleteShortcut}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {callShortcuts.length > 0 && (
-        <Card sx={{ mb: 4 }}>
-          <CardContent>
-            <Typography variant="h5" component="h2" gutterBottom>
-              Call Shortcuts
-            </Typography>
-            <ShortcutList
-              shortcuts={callShortcuts}
-              onEdit={handleEditShortcut}
-              onDelete={handleDeleteShortcut}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {mailShortcuts.length > 0 && (
-        <Card sx={{ mb: 4 }}>
-          <CardContent>
-            <Typography variant="h5" component="h2" gutterBottom>
-              Mail Shortcuts
-            </Typography>
-            <ShortcutList
-              shortcuts={mailShortcuts}
-              onEdit={handleEditShortcut}
-              onDelete={handleDeleteShortcut}
+              onShortcutsReorder={handleShortcutsReorder}
+              type="url"
+              onShowAddModal={handleShowAddModal}
+              totalShortcutsCount={shortcuts.length}
             />
           </CardContent>
         </Card>
       )}
 
       {noteShortcuts.length > 0 && (
-        <Card sx={{ mb: 4 }}>
+        <Card sx={{ mb: 4, boxShadow: 3 }}>
           <CardContent>
             <Typography variant="h5" component="h2" gutterBottom>
               Notes
             </Typography>
             <NotePanel // Use NotePanel for notes
               notes={noteShortcuts}
-              onEdit={handleEditShortcut}
-              onDelete={handleDeleteShortcut}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {callShortcuts.length > 0 && (
+        <Card sx={{ mb: 4, boxShadow: 3 }}>
+          <CardContent>
+            <Typography variant="h5" component="h2" gutterBottom>
+              Call Shortcuts
+            </Typography>
+            <ShortcutList
+              shortcuts={callShortcuts}
+              onShortcutsReorder={handleShortcutsReorder}
+              type="call"
+              onShowAddModal={handleShowAddModal}
+              totalShortcutsCount={shortcuts.length}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {mailShortcuts.length > 0 && (
+        <Card sx={{ mb: 4, boxShadow: 3 }}>
+          <CardContent>
+            <Typography variant="h5" component="h2" gutterBottom>
+              Mail Shortcuts
+            </Typography>
+            <ShortcutList
+              shortcuts={mailShortcuts}
+              onShortcutsReorder={handleShortcutsReorder}
+              type="mail"
+              onShowAddModal={handleShowAddModal}
+              totalShortcutsCount={shortcuts.length}
             />
           </CardContent>
         </Card>
@@ -247,31 +235,15 @@ function HomePage() {
 
       {/* Add/Edit Shortcut Modal */}
       <Dialog open={showAddModal} onClose={handleCloseAddModal}>
-        <DialogTitle>{editingShortcut ? 'Edit Shortcut' : 'Add New Shortcut'}</DialogTitle>
+        <DialogTitle>Add New Shortcut</DialogTitle>
         <DialogContent>
           <ShortcutForm
             onAddShortcut={handleAddShortcut}
-            editingShortcut={editingShortcut}
-            onUpdateShortcut={handleUpdateShortcut}
-            onCancelEdit={handleCancelEdit}
+            placeholderIndex={addingToPlaceholderIndex}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseAddModal}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Confirmation Modal for Deletion */}
-      <Dialog open={showConfirmModal} onClose={cancelDeleteShortcut}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <Typography>Are you sure you want to delete this shortcut?</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={cancelDeleteShortcut}>Cancel</Button>
-          <Button onClick={confirmDeleteShortcut} color="error">
-            Delete
-          </Button>
         </DialogActions>
       </Dialog>
 
@@ -280,6 +252,10 @@ function HomePage() {
           {snackbarMessage}
         </Alert>
       </Snackbar>
+
+      <Fab color="primary" aria-label="add" sx={{ position: 'absolute', top: 16, right: 16 }} onClick={handleShowAddModal}>
+        <AddIcon />
+      </Fab>
     </Container>
   );
 }
