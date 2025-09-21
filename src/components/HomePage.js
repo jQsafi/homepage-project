@@ -3,8 +3,9 @@ import { saveToLocalStorage, loadFromLocalStorage } from '../utils/localStorage'
 import ShortcutList from './ShortcutList';
 import ShortcutForm from './ShortcutForm';
 import NotePanel from './NotePanel'; // Import NotePanel
-import { Container, Box, Typography, Card, CardContent, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert, Grid, Fab } from '@mui/material';
+import { Container, Box, Typography, Card, CardContent, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert, Grid, Fab, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 function HomePage() {
   const [shortcuts, setShortcuts] = useState([]);
@@ -14,12 +15,27 @@ function HomePage() {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [selectedTheme, setSelectedTheme] = useState('defaultGradient');
+
+  const themeOptions = [
+    { name: 'Default Gradient', value: 'defaultGradient' },
+    { name: 'Blue Gradient', value: 'blueGradient' },
+    { name: 'Green Gradient', value: 'greenGradient' },
+    { name: 'Solid Light Gray', value: 'solidLightGray' },
+    { name: 'Solid Dark Gray', value: 'solidDarkGray' },
+  ];
 
   const handleGoogleSearch = () => {
     if (searchQuery.trim()) {
       window.open(`https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`, '_blank');
       setSearchQuery(''); // Clear search query after search
     }
+  };
+
+  const handleThemeChange = (themeValue) => {
+    setSelectedTheme(themeValue);
+    saveToLocalStorage('selectedTheme', themeValue);
   };
 
   useEffect(() => {
@@ -48,11 +64,19 @@ function HomePage() {
     } else {
       setShortcuts(storedShortcuts);
     }
+
+    const storedTheme = loadFromLocalStorage('selectedTheme', 'defaultGradient');
+    setSelectedTheme(storedTheme);
   }, []);
 
   useEffect(() => {
     saveToLocalStorage('shortcuts', shortcuts);
   }, [shortcuts]);
+
+  useEffect(() => {
+    document.body.className = ''; // Clear existing classes
+    document.body.classList.add(selectedTheme);
+  }, [selectedTheme]);
 
   const showSnackbar = (message, severity) => {
     setSnackbarMessage(message);
@@ -256,6 +280,37 @@ function HomePage() {
       <Fab color="primary" aria-label="add" sx={{ position: 'absolute', top: 16, right: 16 }} onClick={handleShowAddModal}>
         <AddIcon />
       </Fab>
+
+      <Fab color="secondary" aria-label="settings" sx={{ position: 'absolute', top: 16, right: 80 }} onClick={() => setShowSettingsModal(true)}>
+        <SettingsIcon />
+      </Fab>
+
+      {/* Settings Modal */}
+      <Dialog open={showSettingsModal} onClose={() => setShowSettingsModal(false)}>
+        <DialogTitle>Settings</DialogTitle>
+        <DialogContent>
+          <Typography variant="h6" gutterBottom>Background Theme</Typography>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel id="theme-select-label">Theme</InputLabel>
+            <Select
+              labelId="theme-select-label"
+              id="theme-select"
+              value={selectedTheme}
+              label="Theme"
+              onChange={(e) => handleThemeChange(e.target.value)}
+            >
+              {themeOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowSettingsModal(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
