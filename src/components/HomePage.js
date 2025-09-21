@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { saveToLocalStorage, loadFromLocalStorage } from '../utils/localStorage';
 import ShortcutList from './ShortcutList';
 import ShortcutForm from './ShortcutForm';
-import { Container, Box, Typography, Card, CardContent, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import NotePanel from './NotePanel'; // Import NotePanel
+import { Container, Box, Typography, Card, CardContent, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert, Grid } from '@mui/material';
 
 function HomePage() {
   const [shortcuts, setShortcuts] = useState([]);
@@ -11,6 +12,9 @@ function HomePage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [shortcutToDelete, setShortcutToDelete] = useState(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
   useEffect(() => {
     setShortcuts(loadFromLocalStorage('shortcuts', []));
@@ -25,15 +29,30 @@ function HomePage() {
     saveToLocalStorage('defaultPage', defaultPage);
   }, [defaultPage]);
 
+  const showSnackbar = (message, severity) => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const handleCloseSnackbar = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+    setSnackbarOpen(false);
+  };
+
   const handleAddShortcut = (newShortcut) => {
     setShortcuts([...shortcuts, { id: Date.now(), ...newShortcut }]);
-    setShowAddModal(false); // Close modal after adding
+    setShowAddModal(false);
+    showSnackbar('Shortcut added successfully!', 'success');
   };
 
   const handleUpdateShortcut = (updatedShortcut) => {
     setShortcuts(shortcuts.map(s => (s.id === updatedShortcut.id ? updatedShortcut : s)));
     setEditingShortcut(null);
-    setShowAddModal(false); // Close modal after updating
+    setShowAddModal(false);
+    showSnackbar('Shortcut updated successfully!', 'success');
   };
 
   const handleDeleteShortcut = (id) => {
@@ -45,6 +64,7 @@ function HomePage() {
     setShortcuts(shortcuts.filter(s => s.id !== shortcutToDelete));
     setShowConfirmModal(false);
     setShortcutToDelete(null);
+    showSnackbar('Shortcut deleted successfully!', 'success');
   };
 
   const cancelDeleteShortcut = () => {
@@ -54,19 +74,75 @@ function HomePage() {
 
   const handleEditShortcut = (shortcut) => {
     setEditingShortcut(shortcut);
-    setShowAddModal(true); // Open modal for editing
+    setShowAddModal(true);
   };
 
   const handleCancelEdit = () => {
     setEditingShortcut(null);
-    setShowAddModal(false); // Close modal on cancel
+    setShowAddModal(false);
   };
 
   const handleShowAddModal = () => setShowAddModal(true);
   const handleCloseAddModal = () => {
     setShowAddModal(false);
-    setEditingShortcut(null); // Clear editing state when modal closes
+    setEditingShortcut(null);
   };
+
+  const handleGoToDefault = useCallback(() => {
+    if (defaultPage) {
+      window.open(defaultPage, '_self');
+    } else {
+      showSnackbar('Please set a default page URL first.', 'warning');
+    }
+  }, [defaultPage]);
+
+  // Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.ctrlKey || event.metaKey) { // Ctrl or Cmd key
+        switch (event.key) {
+          case 'a':
+            event.preventDefault();
+            handleShowAddModal();
+            break;
+          case 'd':
+            event.preventDefault();
+            handleGoToDefault();
+            break;
+          case '1':
+          case '2':
+          case '3':
+          case '4':
+          case '5':
+          case '6':
+          case '7':
+          case '8':
+          case '9':
+            event.preventDefault();
+            const index = parseInt(event.key, 10) - 1;
+            // Find the shortcut by its original index in the combined list
+            const allShortcuts = [...shortcuts]; // Create a copy to avoid direct state mutation
+            if (allShortcuts[index] && allShortcuts[index].value) {
+              window.open(allShortcuts[index].value, '_blank');
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [shortcuts, handleGoToDefault, handleShowAddModal]);
+
+  const urlShortcuts = shortcuts.filter(s => s.type === 'url');
+  const callShortcuts = shortcuts.filter(s => s.type === 'call');
+  const mailShortcuts = shortcuts.filter(s => s.type === 'mail');
+  const noteShortcuts = shortcuts.filter(s => s.type === 'note');
 
   return (
     <Container maxWidth="lg" sx={{ mt: 5 }}>
@@ -79,37 +155,95 @@ function HomePage() {
           <Typography variant="h5" component="h2" gutterBottom>
             Default Page
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
             <TextField
               fullWidth
               label="Set your default page URL"
               variant="outlined"
               value={defaultPage}
               onChange={(e) => setDefaultPage(e.target.value)}
+              sx={{ flexGrow: 1 }}
             />
-            <Button variant="contained" onClick={() => window.open(defaultPage, '_self')}>
+            <Button variant="contained" onClick={handleGoToDefault}>
               Go to Default
             </Button>
           </Box>
         </CardContent>
       </Card>
 
-      <Card>
+      {/* Add Shortcut Button */}
+      <Card sx={{ mb: 4 }}>
         <CardContent>
           <Typography variant="h5" component="h2" gutterBottom>
-            Your Shortcuts
+            Add New Shortcut
           </Typography>
-          {shortcuts.length === 0 ? (
-            <Typography align="center" sx={{ mt: 2 }}>No shortcuts yet. Click the '+' to add some!</Typography>
-          ) : null}
-          <ShortcutList
-            shortcuts={shortcuts}
-            onEdit={handleEditShortcut}
-            onDelete={handleDeleteShortcut}
-            onShowAddModal={handleShowAddModal}
-          />
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+            <Button variant="contained" onClick={handleShowAddModal} sx={{ p: 3, fontSize: '1.2rem' }}>
+              Add New Shortcut
+            </Button>
+          </Box>
         </CardContent>
       </Card>
+
+      {urlShortcuts.length > 0 && (
+        <Card sx={{ mb: 4 }}>
+          <CardContent>
+            <Typography variant="h5" component="h2" gutterBottom>
+              URLs
+            </Typography>
+            <ShortcutList
+              shortcuts={urlShortcuts}
+              onEdit={handleEditShortcut}
+              onDelete={handleDeleteShortcut}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {callShortcuts.length > 0 && (
+        <Card sx={{ mb: 4 }}>
+          <CardContent>
+            <Typography variant="h5" component="h2" gutterBottom>
+              Call Shortcuts
+            </Typography>
+            <ShortcutList
+              shortcuts={callShortcuts}
+              onEdit={handleEditShortcut}
+              onDelete={handleDeleteShortcut}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {mailShortcuts.length > 0 && (
+        <Card sx={{ mb: 4 }}>
+          <CardContent>
+            <Typography variant="h5" component="h2" gutterBottom>
+              Mail Shortcuts
+            </Typography>
+            <ShortcutList
+              shortcuts={mailShortcuts}
+              onEdit={handleEditShortcut}
+              onDelete={handleDeleteShortcut}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {noteShortcuts.length > 0 && (
+        <Card sx={{ mb: 4 }}>
+          <CardContent>
+            <Typography variant="h5" component="h2" gutterBottom>
+              Notes
+            </Typography>
+            <NotePanel // Use NotePanel for notes
+              notes={noteShortcuts}
+              onEdit={handleEditShortcut}
+              onDelete={handleDeleteShortcut}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Add/Edit Shortcut Modal */}
       <Dialog open={showAddModal} onClose={handleCloseAddModal}>
@@ -140,6 +274,12 @@ function HomePage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleCloseSnackbar}>
+        <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }
